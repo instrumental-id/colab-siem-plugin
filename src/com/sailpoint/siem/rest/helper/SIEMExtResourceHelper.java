@@ -13,6 +13,7 @@ import com.sailpoint.siem.object.AuditEventsResponseDTO;
 import com.sailpoint.siem.object.ErrorResponseDTO;
 import com.sailpoint.siem.object.SIEMConstants;
 import com.sailpoint.siem.object.SyslogEventsResponseDTO;
+import com.sailpoint.siem.util.AuditEventFilterBuilder;
 import com.sailpoint.siem.util.SIEMUtil;
 
 import sailpoint.api.SailPointContext;
@@ -150,7 +151,30 @@ public class SIEMExtResourceHelper {
 	
 	public static Response getAuditEvents(int manifestLimit, String startIndex, String count, String startTime,
 			String endTime, String type) throws GeneralException {
-		
+
+		return getAuditEvents(manifestLimit, startIndex, count, startTime, endTime, type, null, null, null);
+	}
+
+	/**
+	 * Get audit events, optionally restricted by action.
+	 *
+	 * Every restriction must hold for an event to be returned. The settings pair
+	 * is the administrator's policy; the request pair can only narrow it further.
+	 *
+	 * @param type
+	 *            Request: comma separated actions to return (a trailing * matches a
+	 *            prefix).
+	 * @param excludeType
+	 *            Request: comma separated actions to leave out.
+	 * @param includeActions
+	 *            Plugin setting: actions to return, blank for all.
+	 * @param excludeActions
+	 *            Plugin setting: actions to leave out.
+	 */
+	public static Response getAuditEvents(int manifestLimit, String startIndex, String count, String startTime,
+			String endTime, String type, String excludeType, String includeActions, String excludeActions)
+			throws GeneralException {
+
 		log.trace("Entering getAuditEvents...");
 		
 		// Default start index to 1 if empty.
@@ -223,10 +247,11 @@ public class SIEMExtResourceHelper {
 			filters.add(Filter.lt(SIEMConstants.FILTER_CREATED, new Date(endEpochTime)));
 		}
 		
-		if (!Utils.isNullOrEmpty(type)) {
-			
-			filters.add(Filter.eq(SIEMConstants.FILTER_ACTION, type));
-		}
+		// Action restrictions: the plugin settings, then the request. All are ANDed.
+		filters.addAll(AuditEventFilterBuilder.includeExclude(SIEMConstants.FILTER_ACTION,
+				AuditEventFilterBuilder.parseList(includeActions), AuditEventFilterBuilder.parseList(excludeActions)));
+		filters.addAll(AuditEventFilterBuilder.includeExclude(SIEMConstants.FILTER_ACTION,
+				AuditEventFilterBuilder.parseList(type), AuditEventFilterBuilder.parseList(excludeType)));
 		Filter filter = Filter.and(filters);
 		qo.addFilter(filter);
 		

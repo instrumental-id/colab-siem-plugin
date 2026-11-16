@@ -1,0 +1,120 @@
+plugins {
+	id 'java'
+}
+
+// pluginName comes from gradle.properties.
+// iiqHome is the root of an exploded IdentityIQ install (the folder that contains
+// WEB-INF). It is machine specific, so set it in ~/.gradle/gradle.properties or
+// pass -PiiqHome=/path/to/identityiq on the command line.
+
+def pluginLibs = fileTree('lib') {
+	include 'identity-plus-dev-utils.jar'
+}
+def testLibs = fileTree('lib') {
+	include '*.jar'
+	exclude 'identity-plus-dev-utils.jar'
+}
+
+def iiqHomeProp = providers.gradleProperty('iiqHome')
+
+// The plugin version is the build time plus the git commit, like our other plugins:
+// yyyy.MMdd.HHmmss.v<short hash>. manifest.xml holds %%BUILD_VERSION%% and pluginZip fills it in.
+def gitShortHash = {
+	try {
+		def proc = ['git', 'rev-parse', '--short', 'HEAD'].execute(null, projectDir)
+		def out = proc.text.trim()
+		return proc.waitFor() == 0 && out ? "v${out}" : null
+	} catch (Exception ignored) {
+		return null
+	}
+}.call()
+def buildVersion = [new Date().format('yyyy.MMdd.HHmmss'), gitShortHash].findAll { it }.join('.')
+project.version = buildVersion
+
+configurations {
+	// IdentityIQ itself. It provides the runtime, so it is compiled against but never packaged.
+	iiq
+	compileOnly.extendsFrom iiq
+	testImplementation.extendsFrom iiq
+}
+
+dependencies {
+	iiq files(iiqHomeProp.map { "${it}/WEB-INF/classes" }.orElse('missing-iiqHome/WEB-INF/classes'))
+	iiq fileTree(dir: iiqHomeProp.map { "${it}/WEB-INF/lib" }.orElse('missing-iiqHome/WEB-INF/lib').get(), include: '*.jar')
+
+	// Bundled with the plugin.
+	implementation pluginLibs
+
+	testImplementation testLibs
+}
+
+sourceSets {
+	main {
+		java.srcDirs = ['src']
+	}
+	test {
+		java.srcDirs = ['test']
+		// RestClient is a hand-run script that needs the Jersey 1 client, which IdentityIQ 8.4 no longer ships.
+		java.exclude 'com/sailpoint/siem/client/**'
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	// IdentityIQ 8.4 is built for Java 11.
+	options.release = 11
+	options.encoding = 'UTF-8'
+	options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
+}
+
+// Fail with a clear message instead of a wall of "package does not exist" errors.
+gradle.taskGraph.whenReady { graph ->
+	def needsIiq = graph.allTasks.any { it.name in ['compileJava', 'compileTestJava', 'test', 'jar', 'pluginZip', 'build'] }
+	if (needsIiq) {
+		def home = iiqHomeProp.orNull
+		if (home == null || !file("${home}/WEB-INF/lib").isDirectory()) {
+			throw new GradleException(
+				"Set iiqHome to an exploded IdentityIQ install (the folder containing WEB-INF), " +
+				"for example: ./gradlew -PiiqHome=/path/to/identityiq pluginZip. " +
+				"You can also put iiqHome=... in ~/.gradle/gradle.properties.")
+		}
+	}
+}
+
+test {
+	useJUnit()
+	// PowerMock needs reflective access to the JDK on Java 16 and later.
+	jvmArgs '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+			'--add-opens', 'java.base/java.util=ALL-UNNAMED'
+	testLogging {
+		events 'passed', 'failed', 'skipped'
+		exceptionFormat 'short'
+	}
+}
+
+jar {
+	archiveBaseName = providers.gradleProperty('pluginName')
+	archiveVersion = ''
+}
+
+// The file you upload in IdentityIQ: build/dist/<pluginName>.<version>.zip
+tasks.register('pluginZip', Zip) {
+	group = 'build'
+	description = 'Builds the plugin zip to install in IdentityIQ.'
+	archiveFileName = "${providers.gradleProperty('pluginName').get()}.${project.version}.zip"
+	destinationDirectory = layout.buildDirectory.dir('dist')
+
+	from('.') {
+		include 'manifest.xml'
+		filteringCharset = 'UTF-8'
+		filter { it.replace('%%BUILD_VERSION%%', buildVersion) }
+	}
+	from('.') {
+		include 'db/**', 'import/**', 'ui/**'
+	}
+	into('lib') {
+		from jar
+		from pluginLibs
+	}
+}
+
+assemble.dependsOn pluginZip

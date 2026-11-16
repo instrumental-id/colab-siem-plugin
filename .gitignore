@@ -1,0 +1,6 @@
+build/
+.gradle/
+.DS_Store
+.claude/
+.codex/
+.vscode/

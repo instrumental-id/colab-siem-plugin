@@ -55,14 +55,19 @@ public class SIEMExtResource extends BasePluginResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response getAuditEvents(@QueryParam("startIndex") String startIndex, @QueryParam("count") String count,
 			@QueryParam("startTime") String startTime, @QueryParam("endTime") String endTime,
-			@QueryParam("type") String type) throws GeneralException {
-		
+			@QueryParam("type") String type, @QueryParam("excludeType") String excludeType) throws GeneralException {
+
 		log.trace("Entering getAuditEvents...");
-		
-		// Get the limit set in manifest.
+
+		// Get the limit and the action restrictions set in manifest.
 		int manifestLimit = PluginBaseHelper.getSettingInt(SIEMConstants.PLUGIN_NAME, SIEMConstants.AUDIT_EVENT_LIMIT);
-		
+		String includeActions = PluginBaseHelper.getSettingString(SIEMConstants.PLUGIN_NAME,
+				SIEMConstants.AUDIT_EVENT_INCLUDE_ACTIONS);
+		String excludeActions = PluginBaseHelper.getSettingString(SIEMConstants.PLUGIN_NAME,
+				SIEMConstants.AUDIT_EVENT_EXCLUDE_ACTIONS);
+
 		log.trace("Exiting getAuditEvents...");
-		return SIEMExtResourceHelper.getAuditEvents(manifestLimit, startIndex, count, startTime, endTime, type);
+		return SIEMExtResourceHelper.getAuditEvents(manifestLimit, startIndex, count, startTime, endTime, type,
+				excludeType, includeActions, excludeActions);
 	}
 }
