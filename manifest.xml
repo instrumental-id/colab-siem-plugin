@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE Plugin PUBLIC "sailpoint.dtd" "sailpoint.dtd">
 <Plugin certificationLevel="None" displayName="SIEM Plugin"
-	minSystemVersion="7.1" name="SIEMPlugin" version="2.0">
+	minSystemVersion="8.4" name="SIEMPlugin" version="%%BUILD_VERSION%%">
 	<Attributes>
 		<Map>
 			<entry key="minUpgradableVersion" value="1.0" />
@@ -51,6 +51,12 @@
 						<Setting dataType="int"
 							helpText="Maximum number for Audit events (per API call). Defaulted to 1000."
 							label="Maximum number for Audit events (per API call)" name="auditEventLimit" defaultValue="1000" />
+						<Setting dataType="string"
+							helpText="Comma separated audit actions to return from the audit events API. Leave blank to return all actions. A trailing * matches a prefix, for example historyDiff*."
+							label="Audit actions to include" name="auditEventIncludeActions" defaultValue="" />
+						<Setting dataType="string"
+							helpText="Comma separated audit actions to leave out of the audit events API, such as the actions another plugin uses to store diffs. A trailing * matches a prefix. Exclusions apply after inclusions."
+							label="Audit actions to exclude" name="auditEventExcludeActions" defaultValue="" />
 					</List>
 				</value>
 			</entry>

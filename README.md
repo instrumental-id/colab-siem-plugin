@@ -17,6 +17,36 @@
 
 [New to the CoLab? Click here »](https://developer.sailpoint.com/discuss/t/about-the-sailpoint-developer-community-colab/11230)
 
+## Building
+
+This plugin requires IdentityIQ 8.4 or later. It builds with Gradle (use the included wrapper). You need JDK 11 or later and an exploded IdentityIQ 8.4+ install to compile against, meaning the folder that contains `WEB-INF`.
+
+```bash
+./gradlew -PiiqHome=/path/to/identityiq pluginZip
+```
+
+To avoid passing the path every time, put `iiqHome=/path/to/identityiq` in `~/.gradle/gradle.properties`. The zip to install in IdentityIQ is written to `build/dist/`.
+
+The plugin version is set at build time to `yyyy.MMdd.HHmmss.v<git short hash>`. `manifest.xml` holds the `%%BUILD_VERSION%%` placeholder, and the build replaces it in the zip only.
+
+`./gradlew -PiiqHome=... test` runs the unit tests.
+
+## Limiting audit events
+
+The `SIEMPlugin/audit-events` endpoint returns audit events from the last 24 hours unless `startTime` and `endTime` are given. Not all audit events are suitable for reporting. They may include private data or a lot of noise, for example.
+
+Plugin settings (administrator policy, applies to every caller):
+
+- **Audit actions to include** (`auditEventIncludeActions`): comma separated actions to return. Blank includes all.
+- **Audit actions to exclude** (`auditEventExcludeActions`): comma separated actions to leave out.
+
+Query parameters (a caller can narrow the results further, never widen them):
+
+- `type`: comma separated actions to return. A single value works as before.
+- `excludeType`: comma separated actions to leave out.
+
+A trailing `*` matches a prefix, so `historyDiff*` covers every action that starts with `historyDiff`. An event is returned only if it passes the settings and the query parameters. Filtering happens in the database query, so `totalResults` and paging reflect the filtered set.
+
 <!-- CONTRIBUTING -->
 ## Contributing
 

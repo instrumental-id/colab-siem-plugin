@@ -18,6 +18,8 @@ public class SIEMConstants {
 	public static final String	PROVISIONING_WORKFLOW						= "provisioningWorkflow";
 	public static final String	SYSLOG_LIMIT								= "syslogLimit";
 	public static final String	AUDIT_EVENT_LIMIT							= "auditEventLimit";
+	public static final String	AUDIT_EVENT_INCLUDE_ACTIONS					= "auditEventIncludeActions";
+	public static final String	AUDIT_EVENT_EXCLUDE_ACTIONS					= "auditEventExcludeActions";
 	
 	// Application Constants
 	public static final String	APPLICATION									= "application";
